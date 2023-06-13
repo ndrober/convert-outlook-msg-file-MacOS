@@ -14,23 +14,20 @@ pip install -r requirements.txt
 
 ## Usage
 
-To convert a single file, you can use the following command:
+To convert a single file on Mac, you can use the following command:
 
-python convert_msg_to_eml.py < message.msg > message.eml
+open -a ConvertMsgToEml message.msg
 
-This command pipes the contents of the message.msg file to the convert_msg_to_eml.py script and outputs the converted message in MIME format to the message.eml file.
+This command converts message.msg file, outputing the converted message in MIME format to the message.eml file, and finally opening it with Apple Mail.
 
 To convert a set of files, you can provide the filenames as command-line arguments:
 
-python convert_msg_to_eml.py *.msg
-This will convert each .msg file in the current directory and create a corresponding .eml file with the converted message.
+Open the ConvertMsgToEml Application and click the Convert Directory button.
+This will convert each .msg file in the selected directory and create a corresponding .eml file with the converted message.
 
 Building the .app
 To build the application with PyInstaller, use the following command:
-
-pyinstaller --name=ConvertMsgToEml convert_msg_to_eml.py --target-arch universal2 --windowed --icon=MSG2EML.icns
-
-This command packages your Python script into a standalone application named ConvertMsgToEml.app. The --target-arch universal2 option ensures compatibility with both Intel and Apple Silicon Macs. The --windowed option creates a windowed application without a console window. Finally, the --icon=MSG2EML.icns option sets the application icon to MSG2EML.icns. Make sure you have the MSG2EML.icns file in the same directory as your script.
+./build.sh
 
 Using the module in your application
 You can also import the outlookmsgfile module into your own application. Here's an example:
