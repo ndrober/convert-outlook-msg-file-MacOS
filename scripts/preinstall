@@ -1,0 +1,80 @@
+#!/bin/bash
+
+INSTLOG="/tmp/convertmsg.$$.log"
+echo '' > ${INSTLOG}
+
+IFS='' read -r -d '' ACCOUNTPLIST << '_EOF1' 
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE plist PUBLIC '-//Apple//DTD PLIST 1.0//EN' 'http://www.apple.com/DTDs/PropertyList-1.0.dtd'>
+<plist version='1.0'>
+  <dict>
+    <key>MailAccounts</key>
+    <array>
+      <dict>
+        <key>AccountName</key>
+        <string>ConvertMsgToEml</string>
+        <key>AccountType</key>
+        <string>POPAccount</string>
+      </dict>
+    </array>
+  </dict>
+</plist>
+_EOF1
+
+IFS='' read -r -d '' GROUPPLIST << '_EOF2'
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE plist PUBLIC '-//Apple//DTD PLIST 1.0//EN' 'http://www.apple.com/DTDs/PropertyList-1.0.dtd'>
+<plist version='1.0'>
+  <dict>
+    <key>PresentedWhatsNewInSydro</key>
+    <true/>
+  </dict>
+</plist>
+_EOF2
+
+INSTID="$(id -u)"
+echo "INSTID=${INSTID}" >> ${INSTLOG} 2>&1
+
+RUNSUDO=""
+if [ "${INSTID}" -eq 0 ]; then
+	RUNSUDO="sudo -u ${USER}"
+fi
+echo "RUNSUDO=${RUNSUDO}" >> ${INSTLOG} 2>&1
+
+USERHOME="${HOME}"
+echo "USERHOME=${USERHOME}" >> ${INSTLOG} 2>&1
+
+HASACCOUNTS=0
+# Check if mail has any non-local accounts
+if [ -f "${USERHOME}/Library/Containers/com.apple.mail/Data/Library/Preferences/com.apple.mail.plist" ]; then
+	cp "${USERHOME}/Library/Containers/com.apple.mail/Data/Library/Preferences/com.apple.mail.plist" /tmp/$$.com.apple.mail.plist
+	plutil -extract AccountOrdering xml1 /tmp/$$.com.apple.mail.plist
+	HASACCOUNTS=$(grep string /tmp/$$.com.apple.mail.plist | grep -v local | wc -l)
+	rm -f /tmp/$$.com.apple.mail.plist
+fi
+echo "HASSCCOUNTS=${HASSACCOUNTS}" >> ${INSTLOG} 2>&1
+
+# If no accounts, create dummy account in old Mail Accounts format for the account migration tool
+if [ ${HASACCOUNTS} -eq 0 ]; then
+	echo "Running: mkdir -p \"${USERHOME}/Library/Mail/V2/MailData\"" >> ${INSTLOG} 2>&1
+	${RUNSUDO} mkdir -p "${USERHOME}/Library/Mail/V2/MailData" >> ${INSTLOG} 2>&1
+
+	echo "Adding to ${USERHOME}/Library/Mail/V2/MailData/Accounts.plist" >> ${INSTLOG} 2>&1
+	${RUNSUDO} touch "${USERHOME}/Library/Mail/V2/MailData/Accounts.plist" 2>> ${INSTLOG}
+	echo "${ACCOUNTPLIST}" > "${USERHOME}/Library/Mail/V2/MailData/Accounts.plist" 2>> ${INSTLOG}
+
+	# Run the account migration tool and cleanup
+	echo "Running: ${RUNSUDO} /System/Library/InternetAccounts/internetAccountsMigrator" >> ${INSTLOG} 2>&1
+	${RUNSUDO} /System/Library/InternetAccounts/internetAccountsMigrator >> ${INSTLOG} 2>&1
+
+	echo "Running: ${RUNSUDO} rm -rf \"${USERHOME}/Library/Mail/V2\"" >> ${INSTLOG} 2>&1
+	${RUNSUDO} rm -rf "${USERHOME}/Library/Mail/V2" >> ${INSTLOG} 2>&1
+fi
+
+# Turn off the "whats new" dialog
+echo "Running: mkdir -p \"${USERHOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences\"" >> ${INSTLOG} 2>&1
+${RUNSUDO} mkdir -p "${USERHOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences" >> ${INSTLOG} 2>&1
+
+echo "Adding to ${USERHOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" >> ${INSTLOG} 2>&1
+${RUNSUDO} touch "${USERHOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" 2>> ${INSTLOG}
+echo "${GROUPPLIST}" > "${USERHOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" 2>> ${INSTLOG}
