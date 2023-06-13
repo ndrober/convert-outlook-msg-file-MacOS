@@ -1,14 +1,16 @@
 import os
 import sys
 import subprocess
+import tempfile
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import outlookmsgfile
-import plistlib
+from email import generator
 
 class MyApp:
     def __init__(self):
         self.root = tk.Tk()
+        self.root.createcommand("::tk::mac::OpenDocument", self.open_file_event)
         self.root.title("MSG to EML Converter")
         self.root.geometry("400x200")  # Set the window size to 400x200
 
@@ -22,6 +24,23 @@ class MyApp:
         self.convert_button = tk.Button(self.root, text="Convert", command=self.select_directory)
         self.convert_button.pack()
 
+    def open_file_event(self, *args):
+        for arg in args:
+            outfile = infile = str(arg)
+
+            if not infile.lower().endswith(".msginit"):
+                if infile.lower().endswith(".msg"):
+                    eml_message = outlookmsgfile.load(infile)
+                    outfile = "{}/{}.eml".format(tempfile.gettempdir(), os.path.basename(infile)[:-4])
+                    with open(outfile, "wb") as eml_file:
+                        eml_file.write(eml_message.as_bytes())
+
+                elif not infile.lower().endswith(".eml"):
+                    messagebox.showinfo("Open File Error", "Could not open file: {}".format(str(arg)))
+
+                subprocess.run(['open', '-a', 'Mail', outfile])
+        self.root.destroy()
+
     def select_directory(self):
         directory = filedialog.askdirectory()
         if directory:
@@ -29,7 +48,7 @@ class MyApp:
 
     def convert(self, directory):
         for file_name in os.listdir(directory):
-            if file_name.endswith(".msg"):
+            if file_name.lower().endswith(".msg"):
                 msg_file_path = os.path.join(directory, file_name)
                 eml_file_path = os.path.join(directory, file_name[:-4] + ".eml")
 
@@ -39,27 +58,6 @@ class MyApp:
                     eml_file.write(eml_message.as_bytes())
 
                 subprocess.run(['open', '-a', 'Mail', eml_file_path])
-
-        # Modify Info.plist for file associations
-        if hasattr(sys, "_MEIPASS"):
-            plist_path = os.path.join(sys._MEIPASS, 'Info.plist')  # Path to Info.plist in the bundled app
-        else:
-            plist_path = 'Info.plist'  # Path to Info.plist when running in a regular Python environment
-
-        plist = plistlib.load(open(plist_path, 'rb'))
-
-        plist['CFBundleDocumentTypes'] = [
-            {
-                'CFBundleTypeName': 'Outlook Message File',
-                'CFBundleTypeRole': 'Editor',
-                'LSItemContentTypes': ['com.microsoft.outlook.msg'],
-                'NSDocumentClass': 'Document',
-                'CFBundleTypeExtensions': ['msg'],
-                'CFBundleTypeIconFile': 'MSG2EML.icns'  # Replace with your icon file name
-            }
-        ]
-
-        plistlib.dump(plist, open(plist_path, 'wb'))
 
     def run(self):
         self.root.mainloop()

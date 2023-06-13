@@ -102,15 +102,34 @@ def load_message_stream(entry, is_top_level, doc):
         del props['SUBJECT']
 
   # Add the plain-text body from the BODY field.
+  hasbody = False
   if 'BODY' in props:
     body = props['BODY']
+    hasbody = True
     if isinstance(body, str):
-      msg.set_content(body, cte='quoted-printable')
+      msg.set_content(body, subtype="plain", cte='quoted-printable')
     else:
       msg.set_content(body, maintype="text", subtype="plain", cte='8bit')
 
+  hoshtml = False
+  if 'HTML' in props:
+    body = props['HTML']
+    hashtml = True
+    if isinstance(body, str):
+        if hasbody:
+            msg.add_alternative(body, subtype="html", cte='quoted-printable')
+        else:
+            msg.set_content(body, subtype="html", cte='quoted-printable')
+    else:
+        if hasbody:
+            msg.add_alternative(body, maintype="text", subtype="html", cte='8bit')
+        else:
+            msg.set_content(body, maintype="text", subtype="html", cte='8bit')
+
+
+
   # Plain-text is not availabe. Use the rich text version.
-  else:
+  if 'RTF_COMPRESSED' in props and not hasbody and not hashtml:
     doc.rtf_attachments += 1
     fn = "messagebody_{}.rtf".format(doc.rtf_attachments)
 
@@ -161,22 +180,28 @@ def process_attachment(msg, entry, doc):
   mime_type = props.get('ATTACH_MIME_TAG', 'application/octet-stream')
   if isinstance(mime_type, bytes): mime_type = mime_type.decode("utf8")
 
+  content_id = props.get('ATTACH_CONTENT_ID') or None
+  if isinstance(content_id, bytes): content_id = content_id.decode("utf8")
+
   filename = os.path.basename(filename)
 
   # Python 3.6.
   if isinstance(blob, str):
     msg.add_attachment(
       blob,
-      filename=filename)
+      filename=filename,
+      cid=content_id)
   elif isinstance(blob, bytes):
     msg.add_attachment(
       blob,
       maintype=mime_type.split("/", 1)[0], subtype=mime_type.split("/", 1)[-1],
-      filename=filename)
+      filename=filename,
+      cid=content_id)
   else: # a Message instance
     msg.add_attachment(
       blob,
-      filename=filename)
+      filename=filename,
+      cid=content_id)
 
 def parse_properties(properties, is_top_level, container, doc):
   # Read a properties stream and return a Python dictionary
@@ -516,6 +541,7 @@ property_tags = {
   0x1010: ('RTF_SYNC_PREFIX_COUNT', 'I4'),
   0x1011: ('RTF_SYNC_TRAILING_COUNT', 'I4'),
   0x1012: ('ORIGINALLY_INTENDED_RECIP_ENTRYID', 'BINARY'),
+  0x1013: ('HTML', 'BINARY'),
   0x0C00: ('CONTENT_INTEGRITY_CHECK', 'BINARY'),
   0x0C01: ('EXPLICIT_CONVERSION', 'I4'),
   0x0C02: ('IPM_RETURN_REQUESTED', 'BOOLEAN'),
@@ -686,6 +712,7 @@ property_tags = {
   0x370D: ('ATTACH_LONG_PATHNAME', 'STRING'),
   0x370E: ('ATTACH_MIME_TAG', 'STRING'),
   0x370F: ('ATTACH_ADDITIONAL_INFO', 'BINARY'),
+  0x3712: ('ATTACH_CONTENT_ID', 'STRING'),
   0x3900: ('DISPLAY_TYPE', 'I4'),
   0x3902: ('TEMPLATEID', 'BINARY'),
   0x3904: ('PRIMARY_CAPABILITY', 'BINARY'),

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Hackish way to run app for the first time and associate msg/eml files.
+echo "" > /tmp/$$.msginit
+open -a ConvertMsgToEml /tmp/$$.msginit
+sleep 2
+rm -f /tmp/$$.msginit
