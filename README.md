@@ -3,6 +3,7 @@
 This repository contains a Python 3.6 module for reading Microsoft Outlook .msg files and converting them to .eml format, which is the standard MIME format for email messages.
 
 ## Installation
+It is highly recommended that you build with Python 3.11 or greater from python.org.
 
 1. Clone the repository:
 
