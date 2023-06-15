@@ -1,3 +1,4 @@
 compoundfiles
 compressed-rtf
 pyinstaller
+PyObjC

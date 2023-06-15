@@ -100,3 +100,5 @@ dmypy.json
 
 # my stuff
 stuff/
+
+.DS_Store
